@@ -76,7 +76,6 @@ services:
 
   spark-gui:
     hostname: spark-gui
-    #user: "1000:100"
     image: jupyter/pyspark-notebook:spark-3.2.1
     restart: always
     environment:
@@ -93,7 +92,7 @@ services:
     working_dir: /home/${USER}/work
     environment:
       JUPYTER_ENABLE_LAB: 1
-      #NB_USER: ${USER}
+      NB_USER: ${USER}
       NB_GID: 1000
       CHOWN_HOME: 'yes'
       CHOWN_HOME_OPTS: '-R'
