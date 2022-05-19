@@ -10,5 +10,7 @@ mkdir -p $SPARK_MASTER_LOG
 
 export SPARK_HOME=/spark
 
+export PYSPARK_SUBMIT_ARGS="--master spark://${SPARK_MASTER_HOST}:${SPARK_MASTER_PORT}"
+
 cd /spark/bin && /spark/sbin/../bin/spark-class org.apache.spark.deploy.master.Master \
     --ip $SPARK_MASTER_HOST --port $SPARK_MASTER_PORT --webui-port $SPARK_MASTER_WEBUI_PORT >> $SPARK_MASTER_LOG/spark-master.outoi

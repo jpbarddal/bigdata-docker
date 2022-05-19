@@ -20,9 +20,9 @@ function configure() {
 
     local var
     local value
-    
+
     echo "Configuring $module"
-    for c in `printenv | perl -sne 'print "$1 " if m/^${envPrefix}_(.+?)=.*/' -- -envPrefix=$envPrefix`; do 
+    for c in `printenv | perl -sne 'print "$1 " if m/^${envPrefix}_(.+?)=.*/' -- -envPrefix=$envPrefix`; do
         name=`echo ${c} | perl -pe 's/___/-/g; s/__/@/g; s/_/./g; s/@/_/g;'`
         var="${envPrefix}_${c}"
         value=${!var}
@@ -53,9 +53,18 @@ if [ "$MULTIHOMED_NETWORK" = "1" ]; then
     addProperty /etc/hadoop/yarn-site.xml yarn.nodemanager.bind-host 0.0.0.0
     addProperty /etc/hadoop/yarn-site.xml yarn.nodemanager.bind-host 0.0.0.0
     addProperty /etc/hadoop/yarn-site.xml yarn.timeline-service.bind-host 0.0.0.0
-
+    addProperty /etc/hadoop/yarn-site.xml yarn.nodemanager.aux-services mapreduce_shuffle
+    addProperty /etc/hadoop/yarn-site.xml yarn.nodemanager.aux-services.mapreduce_shuffle.class org.apache.hadoop.mapred.ShuffleHandler
+    
     # MAPRED
     addProperty /etc/hadoop/mapred-site.xml yarn.nodemanager.bind-host 0.0.0.0
+    addProperty /etc/hadoop/mapred-site.xml mapreduce.framework.name yarn
+    addProperty /etc/hadoop/mapred-site.xml mapreduce.job.tracker resourcemanager
+    addProperty /etc/hadoop/mapred-site.xml hadoop.mapred.home /opt/hadoop-$HADOOP_VERSION
+    addProperty /etc/hadoop/mapred-site.xml yarn.app.mapreduce.am.env HADOOP_MAPRED_HOME=/opt/hadoop-$HADOOP_VERSION
+    addProperty /etc/hadoop/mapred-site.xml mapreduce.map.env HADOOP_MAPRED_HOME=/opt/hadoop-$HADOOP_VERSION
+    addProperty /etc/hadoop/mapred-site.xml mapreduce.reduce.env HADOOP_MAPRED_HOME=/opt/hadoop-$HADOOP_VERSION
+
 fi
 
 if [ -n "$GANGLIA_HOST" ]; then
@@ -67,7 +76,7 @@ if [ -n "$GANGLIA_HOST" ]; then
         echo "$module.period=10"
         echo "$module.servers=$GANGLIA_HOST:8649"
     done > /etc/hadoop/hadoop-metrics.properties
-    
+
     for module in namenode datanode resourcemanager nodemanager mrappmaster jobhistoryserver; do
         echo "$module.sink.ganglia.class=org.apache.hadoop.metrics2.sink.ganglia.GangliaSink31"
         echo "$module.sink.ganglia.period=10"

@@ -1,6 +1,6 @@
 FROM openjdk:8
 
-LABEL Jean Paul Barddal <jpbarddal@gmail.com>
+MAINTAINER Jean Paul Barddal <jpbarddal@gmail.com>
 
 #ENV ENABLE_INIT_DAEMON true
 #ENV INIT_DAEMON_BASE_URI http://identifier/init-daemon

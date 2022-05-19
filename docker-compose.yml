@@ -1,255 +1,128 @@
 version: "3.3"
 
 services:
-
-  # traefik:
-  #   image: traefik:1.6.5
-  #   restart: always
-  #   command: --api --docker  #--logLevel=DEBUG
-  #   ports:
-  #     - "80:80"
-  #     - "8080:8080"
-  #     - "443:443"
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #     - ./conf/traefik/traefik.toml:/etc/traefik/traefik.toml:ro
-  #     - ./data/traefik/acme:/etc/traefik/acme
-  #   labels:
-  #     - traefik.enable=false
-
   namenode:
     image: jpbarddal/hadoop-namenode:1.0
     restart: always
     hostname: namenode
     ports:
       - 50070:9870
+      - 50030:50030
     volumes:
-      - ./data/namenode:/hadoop/dfs/name
+      - ./data/shared:/hadoop/dfs/name
     environment:
       - CLUSTER_NAME=test
     env_file:
-      - ./hadoop-hive.env
-    labels:
-      - traefik.enable=false
+      - ./hadoop.env
 
-  datanode_1:
+  datanode-1:
+    hostname: datanode-1
     image: jpbarddal/hadoop-datanode:1.0
     restart: always
     volumes:
-      - ./data/datanode_1:/hadoop/dfs/data
-      - ./data/archives/:/root/hadoop_data
+      - ./data/shared:/hadoop/dfs/data
     env_file:
-      - ./hadoop-hive.env
+      - ./hadoop.env
     depends_on:
       - namenode
-    labels:
-      - traefik.enable=false
 
-  datanode_2:
+  datanode-2:
+    hostname: datanode-2
     image: jpbarddal/hadoop-datanode:1.0
     restart: always
     volumes:
-      - ./data/datanode_2:/hadoop/dfs/data
-      - ./data/archives/:/root/hadoop_data
+      - ./data/shared:/hadoop/dfs/data
     env_file:
-      - ./hadoop-hive.env
+      - ./hadoop.env
     depends_on:
       - namenode
-    labels:
-      - traefik.enable=false
 
   spark-master:
     image: jpbarddal/spark-master:1.0
     restart: always
     hostname: spark-master
     ports:
-      - "8989:8080"
+      - 8989:8080
+      - 7077:7077
     volumes:
-      - ./conf/zeppelin/conf/hadoop/core-site.xml:/opt/hadoop-3.1.1/etc/hadoop/core-site.xml:ro
+      - ./zeppelin/conf/hadoop/core-site.xml:/opt/hadoop-3.1.1/etc/hadoop/core-site.xml:ro
     env_file:
-      - ./hadoop-hive.env
-    depends_on:
-      - namenode
-    labels:
-      - traefik.enable=false
+      - ./spark.env
 
   spark-worker1:
+    hostname: spark-worker1
     image: jpbarddal/spark-worker:1.0
     restart: always
     environment:
       - "SPARK_MASTER=spark://spark-master:7077"
     env_file:
-      - ./hadoop-hive.env
       - ./spark.env
     volumes:
-      - ./conf/zeppelin/conf/hadoop/core-site.xml:/opt/hadoop-3.1.1/etc/hadoop/core-site.xml:ro
-    labels:
-      - traefik.enable=false
+      - ./zeppelin/conf/hadoop/core-site.xml:/opt/hadoop-3.1.1/etc/hadoop/core-site.xml:ro
 
   spark-worker2:
+    hostname: spark-worker2
     image: jpbarddal/spark-worker:1.0
     restart: always
     environment:
       - "SPARK_MASTER=spark://spark-master:7077"
     env_file:
-      - ./hadoop-hive.env
       - ./spark.env
     volumes:
-      - ./conf/zeppelin/conf/hadoop/core-site.xml:/opt/hadoop-3.1.1/etc/hadoop/core-site.xml:ro
-    labels:
-      - traefik.enable=false
+      - ./zeppelin/conf/hadoop/core-site.xml:/opt/hadoop-3.1.1/etc/hadoop/core-site.xml:ro
 
-  resourcemanager:
-    image: jpbarddal/hadoop-base:1.0
-    # networks:
-    #   - hbase
+  spark-gui:
+    hostname: spark-gui
+    image: jupyter/pyspark-notebook:spark-3.2.1
+    restart: always
     environment:
-      SERVICE_PRECONDITION: "namenode:50070 datanode:50075"
+      - "SPARK_MASTER=spark://spark-master:7077"
+    env_file:
+      - ./spark.env
+    ports:
+      - 50080:8888
+    depends_on:
+      - spark-master
+    environment:
+      - NOTEBOOKS_DIR=/data/notebooks
+      - WORKDIR=/data/notebooks
+    volumes:
+      - /data/shared:/data/notebooks
+
+  historyserver:
+    image: jpbarddal/hadoop-historyserver:1.0
+    container_name: historyserver
+    depends_on:
+      - namenode
+      - datanode-1
+      - datanode-2
     env_file:
       - ./hadoop.env
-    deploy:
-      mode: replicated
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-      placement:
-        constraints:
-          - node.hostname == akswnc4.aksw.uni-leipzig.de
-      labels:
-        traefik.docker.network: hbase
-        traefik.port: 8088
+
+  nodemanager:
+    image: jpbarddal/hadoop-nodemanager:1.0
+    container_name: nodemanager1
+    depends_on:
+      - namenode
+      - datanode-1
+      - datanode-2
+    env_file:
+      - ./hadoop.env
+    volumes:
+      - ./data/shared:/hadoop/dfs/data
+
+  resourcemanager:
+    image: jpbarddal/hadoop-resourcemanager:1.0
+    hostname: resourcemanager
+    ports:
+      - 8088:8088
+    depends_on:
+      - namenode
+      - datanode-1
+      - datanode-2
+    volumes:
+      - ./data/resourcemanager:/hadoop/dfs/data
+    env_file:
+      - ./hadoop.env
     healthcheck:
       disable: true
-  # hive-server:
-  #   image: dmitryzagr/hadoop-hive:2.3.3-hadoop3.1.1-java8
-  #   restart: always
-  #   hostname: hive-server
-  #   env_file:
-  #     - ./hadoop-hive.env
-  #   environment:
-  #     - "HIVE_CORE_CONF_javax_jdo_option_ConnectionURL=jdbc:postgresql://hive-metastore/metastore"
-  #   depends_on:
-  #     - namenode
-  #     - hive-metastore
-  #   labels:
-  #     - traefik.enable=false
-
-  # hive-metastore:
-  #   image: dmitryzagr/hadoop-hive:2.3.3-hadoop3.1.1-java8
-  #   restart: always
-  #   hostname: hive-metastore
-  #   env_file:
-  #     - ./hadoop-hive.env
-  #   command: /opt/hive/bin/hive --service metastore
-  #   depends_on:
-  #     - hive-metastore-postgresql
-  #   labels:
-  #     - traefik.enable=false
-
-  # hive-metastore-postgresql:
-  #   image: dmitryzagr/hive-metastore-postgresql:2.3.2
-  #   restart: always
-  #   hostname: hive-metastore-postgresql
-  #   environment:
-  #     POSTGRESQL_PASSWORD: keycloak
-  #     POSTGRESQL_USER: keycloak
-  #     POSTGRESQL_DATABASE: keycloak
-  #   volumes:
-  #     - ./data/postgresql:/var/lib/postgresql/data
-  #   labels:
-  #     - traefik.enable=false
-
-  # zeppelin:
-  #   image: dmitryzagr/zeppelin:0.8.0-v1-spark2.2.2-hadoop3.1.1
-  #   restart: always
-  #   environment:
-  #     - ZEPPELIN_LOG_DIR=/logs
-  #     - ZEPPELIN_NOTEBOOK_DIR=/notebook
-  #     - ZEPPELIN_SERVER_CONTEXT_PATH=/zeppelin
-  #   volumes:
-  #     - ./conf/zeppelin/interpreter.json:/zeppelin/conf/interpreter.json
-  #     - ./conf/zeppelin/conf/shiro.ini:/zeppelin/conf/shiro.ini
-  #     - ./conf/zeppelin/conf/zeppelin-site.xml:/zeppelin/conf/zeppelin-site.xml
-  #     - ./data/zeppelin/logs:/logs
-  #     - ./data/zeppelin/notebook:/notebook
-  #   labels:
-  #    - "traefik.backend=zeppelin"
-  #    - "traefik.backend.loadbalancer.sticky=true"
-  #    - "traefik.frontend.rule=PathPrefix:/zeppelin"
-  #    - "traefik.enable=true"
-  #    - "traefik.port=8080"
-
-  # openldap:
-  #   image: dmitryzagr/openldap:1.1.9
-  #   restart: always
-  #   entrypoint: /container/service/docker-entrypoint.sh
-  #   environment:
-  #     LDAP_LOG_LEVEL: "256"
-  #     LDAP_ORGANISATION: "1C"
-  #     LDAP_DOMAIN: "base.com"
-  #     LDAP_BASE_DN: "dc=base,dc=com"
-  #     LDAP_ADMIN_PASSWORD: "adminpassword"
-  #     LDAP_CONFIG_PASSWORD: "config"
-  #     LDAP_READONLY_USER: "false"
-  #     LDAP_RFC2307BIS_SCHEMA: "false"
-  #     LDAP_BACKEND: "hdb"
-  #     LDAP_TLS: "true"
-  #     LDAP_TLS_CRT_FILENAME: "ldap.crt"
-  #     LDAP_TLS_KEY_FILENAME: "ldap.key"
-  #     LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
-  #     LDAP_TLS_ENFORCE: "false"
-  #     LDAP_TLS_CIPHER_SUITE: "SECURE256:-VERS-SSL3.0"
-  #     LDAP_TLS_PROTOCOL_MIN: "3.1"
-  #     LDAP_TLS_VERIFY_CLIENT: "demand"
-  #     LDAP_REPLICATION: "false"
-  #     KEEP_EXISTING_CONFIG: "false"
-  #     LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
-  #     LDAP_SSL_HELPER_PREFIX: "ldap"
-  #     #Cron expression to schedule OpenLDAP config backup. Set to "every 10 minutes"
-  #     LDAP_BACKUP_CONFIG_CRON_EXP: "*/10 * * * *"
-  #     #Cron expression to schedule OpenLDAP data backup. Set to "every 10 minutes"
-  #     LDAP_BACKUP_DATA_CRON_EXP: "*/10 * * * *"
-  #     #Backup TTL in days
-  #     LDAP_BACKUP_TTL: "15"
-  #     ADD_DEFAULT_NODES_TIMEOUT: "60"   #in seconds
-  #   stdin_open: true
-  #   volumes:
-  #     - ./data/openldap/var:/var/lib/ldap
-  #     - ./data/openldap/etc:/etc/ldap/slapd.d
-  #     - ./data/openldap/container:/container/service/slapd/assets/certs/
-  #     - ./data/openldap/backup:/data/backup
-  #   #domainname: "base.com" # important: same as hostname
-  #   #hostname: "base.com"
-  #   labels:
-  #     - "traefik.enable=false"
-
-  # keycloak:
-  #   image: dmitryzagr/keycloak-openshift:3.4.0.Final
-  #   restart: always
-  #   entrypoint:
-  #     - start-keycloak.sh
-  #     - -Dkeycloak.migration.action=import
-  #     - -Dkeycloak.migration.provider=dir
-  #     - -Dkeycloak.migration.strategy=IGNORE_EXISTING
-  #     - -Dkeycloak.migration.dir=/opt/jboss/keycloak/realms/
-  #     - -Djboss.bind.address=0.0.0.0
-  #   environment:
-  #     - POSTGRES_PORT_5432_TCP_ADDR=hive-metastore-postgresql
-  #     - POSTGRES_PORT_5432_TCP_PORT=5432
-  #     - POSTGRES_DATABASE=keycloak
-  #     - POSTGRES_USER=keycloak
-  #     - POSTGRES_PASSWORD=keycloak
-  #     - PROXY_ADDRESS_FORWARDING=true
-  #     - CHE_REDIRECT_URIS="http://10.70.2.104/*"
-  #     - CHE_WEB_ORIGINS="http://10.70.2.104"
-  #     - LDAP_BASE_DN=dc=base,dc=com
-  #     - LDAP_PASSWORD=adminpassword
-  #   #volumes:
-  #     #- './data/keycloak:/opt/jboss/keycloak/standalone/data:rw'
-  #     #- './logs/keycloak:/opt/jboss/keycloak/standalone/log:rw'
-  #   labels:
-  #     - "traefik.backend=keycloak"
-  #     - "traefik.backend.loadbalancer.sticky=true"
-  #     - "traefik.frontend.rule=PathPrefix:/auth"
-  #     - "traefik.port=8080"
-  #     - "traefik.enable=true"
