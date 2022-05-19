@@ -9,7 +9,7 @@ services:
       - 50070:9870
       - 50030:50030
     volumes:
-      - ./data/shared:/hadoop/dfs/name
+      - ./data/namenode:/hadoop/dfs/name
     environment:
       - CLUSTER_NAME=test
     env_file:
@@ -20,7 +20,7 @@ services:
     image: jpbarddal/hadoop-datanode:1.0
     restart: always
     volumes:
-      - ./data/shared:/hadoop/dfs/data
+      - ./data/datanode1:/hadoop/dfs/data
     env_file:
       - ./hadoop.env
     depends_on:
@@ -31,7 +31,7 @@ services:
     image: jpbarddal/hadoop-datanode:1.0
     restart: always
     volumes:
-      - ./data/shared:/hadoop/dfs/data
+      - ./data/datanode2:/hadoop/dfs/data
     env_file:
       - ./hadoop.env
     depends_on:
@@ -46,6 +46,7 @@ services:
       - 7077:7077
     volumes:
       - ./zeppelin/conf/hadoop/core-site.xml:/opt/hadoop-3.1.1/etc/hadoop/core-site.xml:ro
+      - ./data/sparkmaster:/hadoop/dfs/data
     env_file:
       - ./spark.env
 
@@ -59,6 +60,7 @@ services:
       - ./spark.env
     volumes:
       - ./zeppelin/conf/hadoop/core-site.xml:/opt/hadoop-3.1.1/etc/hadoop/core-site.xml:ro
+      - ./data/sparkworker1:/hadoop/dfs/data
 
   spark-worker2:
     hostname: spark-worker2
@@ -70,6 +72,7 @@ services:
       - ./spark.env
     volumes:
       - ./zeppelin/conf/hadoop/core-site.xml:/opt/hadoop-3.1.1/etc/hadoop/core-site.xml:ro
+      - ./data/sparkworker2:/hadoop/dfs/data
 
   spark-gui:
     hostname: spark-gui
@@ -87,7 +90,7 @@ services:
       - NOTEBOOKS_DIR=/data/notebooks
       - WORKDIR=/data/notebooks
     volumes:
-      - /data/shared:/data/notebooks
+      - /data/sparkgui:/data/notebooks
 
   historyserver:
     image: jpbarddal/hadoop-historyserver:1.0
@@ -109,7 +112,7 @@ services:
     env_file:
       - ./hadoop.env
     volumes:
-      - ./data/shared:/hadoop/dfs/data
+      - ./data/nodemanager:/hadoop/dfs/data
 
   resourcemanager:
     image: jpbarddal/hadoop-resourcemanager:1.0
