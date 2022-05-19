@@ -88,13 +88,15 @@ services:
     depends_on:
       - spark-master
     volumes:
-      - ./data/sparkgui:/home/jovyan/work
+      - ./data/sparkgui:/home/${USER}/work
     user: root
-    working_dir: /home/jovyan/work
+    working_dir: /home/${USER}/work
     environment:
       JUPYTER_ENABLE_LAB: 1
       #NB_USER: ${USER}
       NB_GID: 1000
+      CHOWN_HOME: 'yes'
+      CHOWN_HOME_OPTS: '-R'
 
   historyserver:
     image: jpbarddal/hadoop-historyserver:1.0
