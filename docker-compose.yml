@@ -76,6 +76,7 @@ services:
 
   spark-gui:
     hostname: spark-gui
+    user: "1000:100"
     image: jupyter/pyspark-notebook:spark-3.2.1
     restart: always
     environment:
@@ -86,11 +87,8 @@ services:
       - 50080:8888
     depends_on:
       - spark-master
-    environment:
-      - NOTEBOOKS_DIR=/data/notebooks
-      - WORKDIR=/data/notebooks
     volumes:
-      - /data/sparkgui:/data/notebooks
+      - ./data/sparkgui:/home/jovyan/
 
   historyserver:
     image: jpbarddal/hadoop-historyserver:1.0
