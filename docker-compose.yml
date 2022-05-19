@@ -76,7 +76,7 @@ services:
 
   spark-gui:
     hostname: spark-gui
-    user: "1000:100"
+    #user: "1000:100"
     image: jupyter/pyspark-notebook:spark-3.2.1
     restart: always
     environment:
@@ -88,7 +88,13 @@ services:
     depends_on:
       - spark-master
     volumes:
-      - ./data/sparkgui:/home/jovyan/
+      - ./data/sparkgui:/home/jovyan/work
+    user: root
+    working_dir: /home/jovyan/work
+    environment:
+      JUPYTER_ENABLE_LAB: 1
+      #NB_USER: ${USER}
+      NB_GID: 1000
 
   historyserver:
     image: jpbarddal/hadoop-historyserver:1.0
