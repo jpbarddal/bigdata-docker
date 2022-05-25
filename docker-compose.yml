@@ -6,6 +6,7 @@ services:
     restart: always
     hostname: namenode
     ports:
+      - 8020:8020
       - 50070:9870
       - 50030:50030
     volumes:
